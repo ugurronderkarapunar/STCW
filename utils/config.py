@@ -8,23 +8,27 @@ from dataclasses import dataclass, field
 
 # ─── Column Name Mappings (Case-Insensitive, Multi-Language) ───
 PERSONNEL_NAME_PATTERNS: List[str] = [
+    "ad",                    # Özel başlık: "Ad"
     "personel adı", "ad soyad", "personel", "employee",
     "crew", "crew name", "name", "isim", "adı soyadı",
     "çalışan", "çalışan adı", "personnel", "full name",
-    "ad", "soyad", "first name", "last name"
+    "ad soyad", "soyad", "first name", "last name"
 ]
 
 RANK_TITLE_PATTERNS: List[str] = [
+    "pzs.tanımı",            # Özel başlık: "Pzs.tanımı"
     "ünvan", "görev", "rank", "position", "title",
     "rütbe", "pozisyon", "görevi", "ünvanı", "job title",
-    "role", "designation", "meslek"
+    "role", "designation", "meslek", "unvan"
 ]
 
 DOCUMENT_NAME_PATTERNS: List[str] = [
+    "nitelik",               # Özel başlık: "Nitelik"
     "belge adı", "certificate", "document", "belge",
     "cert", "doc", "sertifika", "belge türü", "doküman",
     "document type", "certificate name", "certificate type",
-    "document name"
+    "document name", "doküman adı", "evrak adı", "evrak",
+    "belge isim", "sertifika adı"
 ]
 
 EXPIRY_DATE_PATTERNS: List[str] = [
@@ -55,9 +59,13 @@ STATUS_MAP: Dict[str, Tuple[str, str, str]] = {
 }
 
 # ─── Known Rank/Title List (for normalization) ───
+# Yalnızca sizin verinizde bulunan ünvanlar
 KNOWN_RANKS: List[str] = [
-    "Kaptan", "Başmühendis",
-    "Gemici", "Yağcı","Güverte Lostromosu",
+    "Kaptan",
+    "Baş Makinist",
+    "Güverte Lostromosu",
+    "Gemici",
+    "Yağcı"
 ]
 
 # ─── Color Palette (Corporate) ───
