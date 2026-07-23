@@ -1,6 +1,7 @@
 """
 Configuration constants for the Personnel Document Tracking System.
-Includes column mappings, status definitions, color palettes, and rank lists.
+Includes column mappings, status definitions, color palettes, rank lists,
+visual identity, and notification thresholds.
 """
 
 from typing import Dict, List, Tuple
@@ -8,7 +9,7 @@ from dataclasses import dataclass, field
 
 # ─── Column Name Mappings (Case-Insensitive, Multi-Language) ───
 PERSONNEL_NAME_PATTERNS: List[str] = [
-    "ad",                    # Özel başlık: "Ad"
+    "ad",
     "personel adı", "ad soyad", "personel", "employee",
     "crew", "crew name", "name", "isim", "adı soyadı",
     "çalışan", "çalışan adı", "personnel", "full name",
@@ -16,14 +17,14 @@ PERSONNEL_NAME_PATTERNS: List[str] = [
 ]
 
 RANK_TITLE_PATTERNS: List[str] = [
-    "pzs.tanımı",            # Özel başlık: "Pzs.tanımı"
+    "pzs.tanımı",
     "ünvan", "görev", "rank", "position", "title",
     "rütbe", "pozisyon", "görevi", "ünvanı", "job title",
     "role", "designation", "meslek", "unvan"
 ]
 
 DOCUMENT_NAME_PATTERNS: List[str] = [
-    "nitelik",               # Özel başlık: "Nitelik"
+    "nitelik",
     "belge adı", "certificate", "document", "belge",
     "cert", "doc", "sertifika", "belge türü", "doküman",
     "document type", "certificate name", "certificate type",
@@ -40,33 +41,16 @@ EXPIRY_DATE_PATTERNS: List[str] = [
 ]
 
 # ─── Document Status Definitions ───
-@dataclass
-class DocumentStatus:
-    """Document status with visual properties."""
-    EXPIRED: Tuple[str, str, str] = field(default=("🔴", "Süresi Geçmiş", "#FF4136"))
-    CRITICAL: Tuple[str, str, str] = field(default=("🟠", "Kritik (0-30 Gün)", "#FF851B"))
-    APPROACHING: Tuple[str, str, str] = field(default=("🟡", "Yaklaşıyor (31-90 Gün)", "#FFDC00"))
-    VALID: Tuple[str, str, str] = field(default=("🟢", "Geçerli", "#2ECC40"))
-    NO_DATE: Tuple[str, str, str] = field(default=("⚪", "Tarih Yok", "#AAAAAA"))
-
-
 STATUS_MAP: Dict[str, Tuple[str, str, str]] = {
     "EXPIRED": ("🔴", "Süresi Geçmiş", "#FF4136"),
     "CRITICAL": ("🟠", "Kritik (0-30 Gün)", "#FF851B"),
     "APPROACHING": ("🟡", "Yaklaşıyor (31-90 Gün)", "#FFDC00"),
     "VALID": ("🟢", "Geçerli", "#2ECC40"),
-    "NO_DATE": ("⚪", "Tarih Yok", "#AAAAAA"),
+    "NO_DATE": ("⚪", "Eklenecek", "#AAAAAA"),
 }
 
 # ─── Known Rank/Title List (for normalization) ───
-# Yalnızca sizin verinizde bulunan ünvanlar
-KNOWN_RANKS: List[str] = [
-    "Kaptan",
-    "Baş Makinist",
-    "Güverte Lostromosu",
-    "Gemici",
-    "Yağcı"
-]
+KNOWN_RANKS: List[str] = []   # Dosyadan otomatik öğrenilir
 
 # ─── Color Palette (Corporate) ───
 COLORS: Dict[str, str] = {
@@ -100,3 +84,15 @@ DATE_FORMATS: List[str] = [
 # ─── File Settings ───
 ALLOWED_EXTENSIONS: List[str] = ["xlsx", "csv", "xls"]
 MAX_FILE_SIZE_MB: int = 200
+
+# ─── Visual Identity ───
+APP_NAME: str = "Personel Belge Takip Sistemi"
+APP_LOGO_URL: str = "https://img.icons8.com/fluency/96/document.png"
+COMPANY_NAME: str = "Kurumsal Denizcilik A.Ş."
+
+# ─── Notification Thresholds ───
+NOTIFICATION_THRESHOLDS: Dict[str, int] = {
+    "expired_warning": 10,      # 10'dan fazla süresi geçmiş belge varsa uyar
+    "critical_warning": 20,     # 20'den fazla kritik belge varsa uyar
+    "missing_date_warning": 15  # 15'den fazla tarihsiz belge varsa uyar
+}
