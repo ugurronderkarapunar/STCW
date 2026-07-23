@@ -1,11 +1,7 @@
-"""
-Main Dashboard Page
-Displays KPIs, charts, risk tables, and personnel cards.
-"""
-import hashlib
 import streamlit as st
 import pandas as pd
 from datetime import date
+import hashlib  # <-- EKLENDİ
 
 from components.kpi_cards import render_kpi_cards
 from components.charts import (
@@ -165,7 +161,7 @@ def main():
     if uploaded_file is not None:
         service = st.session_state.analysis_service
         file_bytes = uploaded_file.read()
-        file_hash = hashlib.md5(file_bytes).hexdigest()
+        file_hash = hashlib.md5(file_bytes).hexdigest()  # <-- hashlib kullanımı
 
         if st.session_state.last_file_hash != file_hash:
             with st.spinner("📂 Dosya analiz ediliyor..."):
