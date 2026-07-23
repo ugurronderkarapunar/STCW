@@ -33,7 +33,7 @@ class AnalysisService:
         self.errors: List[str] = []
         self.warnings: List[str] = []
         self.file_loaded: bool = False
-        self.data_version: int = 0          # <-- GÜNCELLEME TAKİBİ
+        self.data_version: int = 0          # EKLENEN SATIR
 
     def load_file(self, file_bytes: bytes, filename: str) -> bool:
         self.reset()
