@@ -5,14 +5,13 @@ and providing data to the UI layer.
 
 import pandas as pd
 import numpy as np
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional, Dict, List, Tuple, Any
 import logging
-import io
 
 from utils.excel_parser import ExcelParser
 from utils.data_processor import DataProcessor
-from utils.config import STATUS_MAP
+from utils.config import STATUS_MAP, DOCUMENT_VALIDITY_MAP, DEFAULT_DOCUMENT_VALIDITY_DAYS
 
 logger = logging.getLogger(__name__)
 
@@ -36,26 +35,14 @@ class AnalysisService:
         self.file_loaded: bool = False
 
     def load_file(self, file_bytes: bytes, filename: str) -> bool:
-        """
-        Load and process an uploaded file.
-
-        Args:
-            file_bytes: File content as bytes.
-            filename: Original filename.
-
-        Returns:
-            bool: True if successful.
-        """
         self.reset()
         self.parser = ExcelParser(file_bytes=file_bytes)
 
-        # Read file
         raw_df = self.parser.read_file()
         if raw_df.empty and self.parser.errors:
             self.errors.extend(self.parser.errors)
             return False
 
-        # Map columns
         if not self.parser.map_columns():
             self.errors.extend(self.parser.errors)
             self.warnings.extend(self.parser.warnings)
@@ -63,13 +50,11 @@ class AnalysisService:
 
         self.warnings.extend(self.parser.warnings)
 
-        # Get mapped data
         mapped_df = self.parser.get_mapped_dataframe()
         if mapped_df.empty:
             self.errors.append("Veri eşleştirme başarısız.")
             return False
 
-        # Process data
         self.processor = DataProcessor(mapped_df)
         self.processed_data = self.processor.process()
 
@@ -80,7 +65,6 @@ class AnalysisService:
         self.warnings.extend(self.processor.errors)
         self.warnings.extend(self.processor.warnings)
 
-        # Create summaries
         self.personnel_summary = self.processor.create_personnel_summary()
         self.rank_summary = self.processor.create_rank_summary()
         self.document_summary = self.processor.get_document_type_summary()
@@ -90,7 +74,6 @@ class AnalysisService:
         return True
 
     def reset(self):
-        """Reset all data."""
         self.parser = None
         self.processor = None
         self.processed_data = None
@@ -103,24 +86,11 @@ class AnalysisService:
         self.file_loaded = False
 
     def get_column_mapping_info(self) -> Dict[str, Optional[str]]:
-        """
-        Return the last used column mapping for UI display.
-        
-        Returns:
-            Dict: Column mapping with keys personnel_name, rank_title, 
-                  document_name, expiry_date
-        """
         if self.parser and self.parser.column_map:
             return self.parser.column_map.copy()
         return {}
 
     def get_kpi_metrics(self) -> Dict[str, Any]:
-        """
-        Calculate KPI metrics for dashboard.
-
-        Returns:
-            dict: All KPI values.
-        """
         if self.processed_data is None:
             return {}
 
@@ -148,19 +118,16 @@ class AnalysisService:
         }
 
     def get_status_distribution(self) -> pd.DataFrame:
-        """Get document count by status."""
         if self.processed_data is None:
             return pd.DataFrame()
         return self.processed_data["status_label"].value_counts().reset_index()
 
     def get_rank_risk(self) -> pd.DataFrame:
-        """Get rank risk summary for charts."""
         if self.rank_summary is None:
             return pd.DataFrame()
         return self.rank_summary.copy()
 
     def get_personnel_risk(self) -> pd.DataFrame:
-        """Get top risky personnel."""
         if self.personnel_summary is None:
             return pd.DataFrame()
         return self.personnel_summary.head(20).copy()
@@ -173,25 +140,9 @@ class AnalysisService:
         personnel_search: Optional[str] = None,
         month_filter: Optional[int] = None,
         year_filter: Optional[int] = None,
-        expiry_date_start: Optional[date] = None,   # yeni
-        expiry_date_end: Optional[date] = None,     # yeni
+        expiry_date_start: Optional[date] = None,
+        expiry_date_end: Optional[date] = None,
     ) -> pd.DataFrame:
-        """
-        Apply filters to processed data.
-
-        Args:
-            rank_filter: List of ranks to include.
-            status_filter: List of statuses to include.
-            document_filter: List of document types to include.
-            personnel_search: Text search for personnel name.
-            month_filter: Filter by expiry month (1-12).
-            year_filter: Filter by expiry year.
-            expiry_date_start: Filter by expiry date >= this date.
-            expiry_date_end: Filter by expiry date <= this date.
-
-        Returns:
-            Filtered DataFrame.
-        """
         if self.processed_data is None:
             return pd.DataFrame()
 
@@ -199,24 +150,17 @@ class AnalysisService:
 
         if rank_filter:
             df = df[df["rank_normalized"].isin(rank_filter)]
-
         if status_filter:
             df = df[df["status"].isin(status_filter)]
-
         if document_filter:
             df = df[df["document_name"].isin(document_filter)]
-
         if personnel_search:
             search_lower = personnel_search.lower()
             df = df[df["personnel_name"].str.lower().str.contains(search_lower, na=False)]
-
         if month_filter and "expiry_date" in df.columns:
             df = df[df["expiry_date"].apply(lambda d: d.month == month_filter if d and pd.notna(d) else False)]
-
         if year_filter and "expiry_date" in df.columns:
             df = df[df["expiry_date"].apply(lambda d: d.year == year_filter if d and pd.notna(d) else False)]
-
-        # Tarih aralığı filtresi
         if "expiry_date" in df.columns:
             if expiry_date_start is not None:
                 df = df[df["expiry_date"] >= expiry_date_start]
@@ -226,12 +170,6 @@ class AnalysisService:
         return df
 
     def get_filter_options(self) -> Dict[str, List[Any]]:
-        """
-        Get available filter options from the data.
-
-        Returns:
-            Dict with lists of unique values for each filter.
-        """
         if self.processed_data is None:
             return {}
 
@@ -246,3 +184,59 @@ class AnalysisService:
                 reverse=True
             ) if "expiry_date" in df.columns else [],
         }
+
+    def update_document_dates(
+        self,
+        personnel_name: str,
+        document_name: str,
+        start_date: Optional[date] = None,
+        expiry_date: Optional[date] = None,
+    ) -> bool:
+        """
+        Update the dates of a specific personnel document.
+        Re-processes the data afterwards.
+        """
+        if self.processed_data is None:
+            return False
+
+        mask = (self.processed_data["personnel_name"] == personnel_name) & \
+               (self.processed_data["document_name"] == document_name)
+
+        if not mask.any():
+            return False
+
+        if expiry_date is not None:
+            self.processed_data.loc[mask, "expiry_date"] = expiry_date
+            self.processed_data.loc[mask, "expiry_date_raw"] = expiry_date.strftime("%d.%m.%Y")
+        else:
+            # If no expiry given but start_date provided, calculate it
+            if start_date is not None:
+                doc_lower = document_name.lower()
+                validity_days = DEFAULT_DOCUMENT_VALIDITY_DAYS
+                for key, days in DOCUMENT_VALIDITY_MAP.items():
+                    if key in doc_lower:
+                        validity_days = days
+                        break
+                calc_expiry = start_date + timedelta(days=validity_days)
+                self.processed_data.loc[mask, "expiry_date"] = calc_expiry
+                self.processed_data.loc[mask, "expiry_date_raw"] = calc_expiry.strftime("%d.%m.%Y")
+
+        from utils.date_parser import calculate_remaining_days, classify_document
+        today = date.today()
+        for idx in self.processed_data[mask].index:
+            new_expiry = self.processed_data.at[idx, "expiry_date"]
+            rem = calculate_remaining_days(new_expiry, today)
+            self.processed_data.at[idx, "remaining_days"] = rem
+            new_status = classify_document(rem)
+            self.processed_data.at[idx, "status"] = new_status
+            self.processed_data.at[idx, "status_label"] = STATUS_MAP[new_status][1]
+            self.processed_data.at[idx, "status_color"] = STATUS_MAP[new_status][2]
+            self.processed_data.at[idx, "status_emoji"] = STATUS_MAP[new_status][0]
+
+        # Re-create summaries
+        self.personnel_summary = self.processor.create_personnel_summary()
+        self.rank_summary = self.processor.create_rank_summary()
+        self.document_summary = self.processor.get_document_type_summary()
+        self.monthly_forecast = self.processor.get_monthly_expiry_forecast()
+
+        return True
