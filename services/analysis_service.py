@@ -33,7 +33,6 @@ class AnalysisService:
         self.errors: List[str] = []
         self.warnings: List[str] = []
         self.file_loaded: bool = False
-        self.data_version: int = 0          # Güncelleme takibi için
 
     def load_file(self, file_bytes: bytes, filename: str) -> bool:
         self.reset()
@@ -85,7 +84,6 @@ class AnalysisService:
         self.errors = []
         self.warnings = []
         self.file_loaded = False
-        self.data_version = 0
 
     def get_column_mapping_info(self) -> Dict[str, Optional[str]]:
         if self.parser and self.parser.column_map:
@@ -194,10 +192,6 @@ class AnalysisService:
         start_date: Optional[date] = None,
         expiry_date: Optional[date] = None,
     ) -> bool:
-        """
-        Update the dates of a specific personnel document.
-        Re-processes the data and all summaries afterwards.
-        """
         if self.processed_data is None:
             return False
 
@@ -248,6 +242,4 @@ class AnalysisService:
         self.document_summary = self.processor.get_document_type_summary()
         self.monthly_forecast = self.processor.get_monthly_expiry_forecast()
 
-        # Dashboard'ın değişikliği fark etmesi için versiyon numarasını artır
-        self.data_version += 1
         return True
