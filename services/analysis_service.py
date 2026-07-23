@@ -33,6 +33,7 @@ class AnalysisService:
         self.errors: List[str] = []
         self.warnings: List[str] = []
         self.file_loaded: bool = False
+        self.data_version: int = 0          # <-- GÜNCELLEME TAKİBİ
 
     def load_file(self, file_bytes: bytes, filename: str) -> bool:
         self.reset()
@@ -84,6 +85,7 @@ class AnalysisService:
         self.errors = []
         self.warnings = []
         self.file_loaded = False
+        self.data_version = 0
 
     def get_column_mapping_info(self) -> Dict[str, Optional[str]]:
         if self.parser and self.parser.column_map:
@@ -200,7 +202,6 @@ class AnalysisService:
         if not mask.any():
             return False
 
-        # Yeni bir DataFrame oluşturup güncelleme yapalım (referansı kırmak için)
         df = self.processed_data.copy()
 
         if expiry_date is not None:
@@ -219,7 +220,6 @@ class AnalysisService:
         else:
             return False
 
-        # Kalan gün ve durumları yeniden hesapla
         from utils.date_parser import calculate_remaining_days, classify_document
         today = date.today()
         for idx in df[mask].index:
@@ -232,14 +232,13 @@ class AnalysisService:
             df.at[idx, "status_color"] = STATUS_MAP[new_status][2]
             df.at[idx, "status_emoji"] = STATUS_MAP[new_status][0]
 
-        # Güncellenmiş DataFrame'i servise ata
         self.processed_data = df
         self.processor.processed_df = df.copy()
 
-        # Özet tabloları yeniden oluştur
         self.personnel_summary = self.processor.create_personnel_summary()
         self.rank_summary = self.processor.create_rank_summary()
         self.document_summary = self.processor.get_document_type_summary()
         self.monthly_forecast = self.processor.get_monthly_expiry_forecast()
 
+        self.data_version += 1
         return True
