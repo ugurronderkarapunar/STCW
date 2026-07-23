@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
-import hashlib  # <-- EKLENDİ
+import hashlib
 
 from components.kpi_cards import render_kpi_cards
 from components.charts import (
@@ -46,6 +46,8 @@ def init_session_state():
         st.session_state.last_file_hash = None
     if "data_version" not in st.session_state:
         st.session_state.data_version = 0
+    if "update_done" not in st.session_state:          # <-- YENİ
+        st.session_state.update_done = False
 
 
 def generate_sample_data() -> pd.DataFrame:
@@ -161,7 +163,7 @@ def main():
     if uploaded_file is not None:
         service = st.session_state.analysis_service
         file_bytes = uploaded_file.read()
-        file_hash = hashlib.md5(file_bytes).hexdigest()  # <-- hashlib kullanımı
+        file_hash = hashlib.md5(file_bytes).hexdigest()
 
         if st.session_state.last_file_hash != file_hash:
             with st.spinner("📂 Dosya analiz ediliyor..."):
@@ -186,6 +188,12 @@ def main():
 
     # Filtreler ve mapping debug
     if st.session_state.data_loaded:
+        # Eğer Belge Düzenleme sayfasından güncelleme sinyali geldiyse,
+        # filtered_data'yı temizle ve sinyali sıfırla.
+        if st.session_state.update_done:
+            st.session_state.filtered_data = None
+            st.session_state.update_done = False
+
         filter_options = service.get_filter_options()
         filters = render_sidebar_filters(filter_options)
 
