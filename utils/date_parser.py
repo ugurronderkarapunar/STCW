@@ -40,19 +40,12 @@ def parse_single_date(value: any) -> Optional[date]:
     if value is None:
         return None
 
-    if pd.isna(value) if hasattr(value, '__iter__') is False and not isinstance(value, str) else False:
-        # Check for NaN more carefully
-        try:
-            if isinstance(value, float) and np.isnan(value):
-                return None
-        except (TypeError, ValueError):
-            pass
+    if isinstance(value, float) and np.isnan(value):
+        return None
 
-    # Already a date/datetime
     if isinstance(value, (date, datetime)):
         return value.date() if isinstance(value, datetime) else value
 
-    # Pandas Timestamp
     if isinstance(value, pd.Timestamp):
         return value.date()
 
@@ -81,9 +74,9 @@ def parse_single_date(value: any) -> Optional[date]:
                 except ValueError:
                     continue
 
-        # Try pandas to_datetime
+        # Try pandas to_datetime without forcing dayfirst to avoid warning
         try:
-            parsed = pd.to_datetime(value, errors='coerce', dayfirst=True)
+            parsed = pd.to_datetime(value, errors='coerce', dayfirst=None)
             if not pd.isna(parsed):
                 return parsed.date()
         except Exception:
@@ -112,16 +105,22 @@ def parse_date_series(series: pd.Series) -> pd.Series:
     if series.empty:
         return pd.Series(dtype='object')
 
-    # First attempt: direct pd.to_datetime with dayfirst
-    parsed = pd.to_datetime(series, errors='coerce', dayfirst=True)
+    # First attempt: direct pd.to_datetime without dayfirst to avoid warning
+    parsed = pd.to_datetime(series, errors='coerce', dayfirst=None)
 
-    # Check how many failed
-    na_mask = parsed.isna() & series.notna()
+    # Second attempt for remaining NaT: try with dayfirst=True
+    still_na = parsed.isna() & series.notna()
+    if still_na.any():
+        # Try again with dayfirst=True
+        parsed2 = pd.to_datetime(series[still_na], errors='coerce', dayfirst=True)
+        # Update only those that succeeded
+        parsed.loc[still_na] = parsed2
 
-    if na_mask.any():
-        logger.info(f"Falling back to element-wise parsing for {na_mask.sum()} values")
-        # Element-wise parsing for failed values
-        for idx in series[na_mask].index:
+    # Final fallback: element-wise parsing for any remaining NaT
+    final_na = parsed.isna() & series.notna()
+    if final_na.any():
+        logger.info(f"Falling back to element-wise parsing for {final_na.sum()} values")
+        for idx in series[final_na].index:
             parsed_date = parse_single_date(series.loc[idx])
             if parsed_date is not None:
                 parsed.loc[idx] = pd.Timestamp(parsed_date)
@@ -134,36 +133,17 @@ def parse_date_series(series: pd.Series) -> pd.Series:
 
 
 def calculate_remaining_days(expiry_date: Optional[date], reference_date: Optional[date] = None) -> Optional[int]:
-    """
-    Calculate remaining days until expiry.
-
-    Args:
-        expiry_date: The expiry date.
-        reference_date: Reference date (defaults to today).
-
-    Returns:
-        Optional[int]: Number of days remaining (negative if expired).
-    """
+    """Calculate remaining days until expiry."""
     if expiry_date is None:
         return None
-
     if reference_date is None:
         reference_date = date.today()
-
     delta = expiry_date - reference_date
     return delta.days
 
 
 def classify_document(remaining_days: Optional[int]) -> str:
-    """
-    Classify document based on remaining days.
-
-    Args:
-        remaining_days: Days until expiry (None if no date).
-
-    Returns:
-        str: Status key ('EXPIRED', 'CRITICAL', 'APPROACHING', 'VALID', 'NO_DATE').
-    """
+    """Classify document based on remaining days."""
     if remaining_days is None:
         return "NO_DATE"
     if remaining_days < 0:
