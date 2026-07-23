@@ -116,9 +116,9 @@ def main():
 
     init_session_state()
 
-    # 🔁 VERİ SÜRÜM KONTROLÜ: Eğer servisteki sürüm değişmişse sayfayı yeniden başlat
+    # 🔁 Otomatik Güncelleme Mekanizması
+    service = st.session_state.analysis_service
     if st.session_state.data_loaded:
-        service = st.session_state.analysis_service
         if service.data_version != st.session_state.data_version:
             st.session_state.data_version = service.data_version
             st.rerun()
@@ -152,7 +152,6 @@ def main():
             if st.button("📋 Örnek Veri ile Dene", use_container_width=True):
                 sample_df = generate_sample_data()
                 csv_bytes = sample_df.to_csv(index=False).encode('utf-8-sig')
-                service = st.session_state.analysis_service
                 success = service.load_file(csv_bytes, "ornek_veri.csv")
                 if success:
                     st.session_state.data_loaded = True
@@ -166,7 +165,6 @@ def main():
 
     # File upload handling
     if uploaded_file is not None:
-        service = st.session_state.analysis_service
         file_bytes = uploaded_file.read()
         file_hash = hashlib.md5(file_bytes).hexdigest()
 
@@ -189,11 +187,9 @@ def main():
             st.session_state.last_file_hash = None
             st.rerun()
 
-    service = st.session_state.analysis_service
-
     # Filtreler ve mapping debug
     if st.session_state.data_loaded:
-        # filtered_data'yı her seferinde sıfırla (güncel veriden hesaplansın)
+        # Her seferinde sıfırla ki en güncel veri kullanılsın
         st.session_state.filtered_data = None
 
         filter_options = service.get_filter_options()
