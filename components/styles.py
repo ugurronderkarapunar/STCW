@@ -6,9 +6,6 @@ Centralized CSS styles for the Streamlit application.
 def get_custom_css() -> str:
     """
     Returns the complete CSS for dark/light mode compatible styling.
-
-    Returns:
-        str: CSS string.
     """
     return """
     <style>
@@ -245,6 +242,62 @@ def get_custom_css() -> str:
         .info-tooltip {
             cursor: help;
             border-bottom: 1px dotted var(--text-light);
+        }
+    </style>
+    """
+
+
+def get_light_theme_css() -> str:
+    """Light theme overrides (already default)."""
+    return """
+    <style>
+        :root {
+            --bg: #F5F7FA;
+            --card-bg: #FFFFFF;
+            --text: #2C3E50;
+            --text-light: #7F8C8D;
+            --border: #E1E8ED;
+        }
+        .stApp {
+            background-color: var(--bg);
+        }
+    </style>
+    """
+
+
+def get_dark_theme_css() -> str:
+    """Dark theme overrides."""
+    return """
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --card-bg: #16213e;
+            --text: #e0e0e0;
+            --text-light: #a0a0a0;
+            --border: #2a2a4a;
+            --primary: #4a90e2;
+            --primary-light: #5a9ff2;
+        }
+        .stApp {
+            background-color: var(--bg);
+        }
+        .kpi-card, .personnel-card, .alert-box {
+            background-color: var(--card-bg);
+            color: var(--text);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+        }
+        .kpi-value, .personnel-name {
+            color: var(--text);
+        }
+        .kpi-label, .personnel-rank, .metric-label {
+            color: var(--text-light);
+        }
+        .section-header {
+            color: #4a90e2;
+            border-bottom-color: #4a90e2;
+        }
+        .metric-item {
+            background: #2a2a4a;
         }
     </style>
     """
