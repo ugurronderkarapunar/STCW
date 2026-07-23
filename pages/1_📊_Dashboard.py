@@ -1,11 +1,11 @@
 """
-Main Dashboard Page with animations, real-time updates, interactive charts, and notifications.
+Main Dashboard Page
+Displays KPIs, charts, risk tables, and personnel cards.
 """
 
 import streamlit as st
 import pandas as pd
 from datetime import date
-import hashlib
 
 from components.kpi_cards import render_kpi_cards
 from components.charts import (
@@ -48,6 +48,8 @@ def init_session_state():
         st.session_state.default_status_filter = []
     if "last_file_hash" not in st.session_state:
         st.session_state.last_file_hash = None
+    if "data_version" not in st.session_state:
+        st.session_state.data_version = 0
 
 
 def generate_sample_data() -> pd.DataFrame:
@@ -124,7 +126,7 @@ def main():
         st.markdown(get_light_theme_css(), unsafe_allow_html=True)
     st.markdown(get_custom_css(), unsafe_allow_html=True)
 
-    # ── Header with Logo & Company Name ──
+    # Header
     st.markdown(
         f"""
         <div class="app-header animate-fade-in">
@@ -139,7 +141,7 @@ def main():
         unsafe_allow_html=True,
     )
 
-    # ── Sidebar ──
+    # Sidebar
     with st.sidebar:
         uploaded_file = render_file_upload_section()
 
@@ -159,7 +161,7 @@ def main():
 
         st.markdown("---")
 
-    # ── File Upload Handling (with hash check for real-time update) ──
+    # File upload handling
     if uploaded_file is not None:
         service = st.session_state.analysis_service
         file_bytes = uploaded_file.read()
@@ -178,7 +180,7 @@ def main():
                 for warning in service.warnings:
                     st.sidebar.warning(f"⚠️ {warning}")
 
-    # ── Reload Button ──
+    # Reload button
     if st.session_state.data_loaded:
         if st.sidebar.button("🔄 Veriyi Yeniden Yükle", use_container_width=True):
             st.session_state.last_file_hash = None
@@ -186,17 +188,28 @@ def main():
 
     service = st.session_state.analysis_service
 
-    # ── Filters & Mapping Debug ──
+    # Filtreler ve mapping debug
     if st.session_state.data_loaded:
         filter_options = service.get_filter_options()
         filters = render_sidebar_filters(filter_options)
 
-        # Apply default filters from settings
+        # Varsayılan filtreleri uygula
         if not filters.get("rank_filter") and not filters.get("status_filter"):
             if st.session_state.default_rank_filter:
                 filters["rank_filter"] = st.session_state.default_rank_filter
             if st.session_state.default_status_filter:
                 filters["status_filter"] = st.session_state.default_status_filter
+
+        # 🔁 Versiyon kontrolü: eğer servis versiyonu değiştiyse filtered_data'yı sıfırla
+        if service.data_version != st.session_state.data_version:
+            st.session_state.filtered_data = None
+            st.session_state.data_version = service.data_version
+
+        # Manuel yenileme butonu
+        st.sidebar.markdown("---")
+        if st.sidebar.button("🔄 Veriyi Yenile", use_container_width=True):
+            st.session_state.filtered_data = None
+            st.rerun()
 
         filtered_data = service.get_filtered_data(
             rank_filter=filters.get("rank_filter") if filters.get("rank_filter") else None,
@@ -208,7 +221,7 @@ def main():
         )
         st.session_state.filtered_data = filtered_data
 
-        # Column Mapping Debug Info
+        # Kolon eşleşme debug
         mapping = service.get_column_mapping_info()
         if mapping:
             with st.sidebar.expander("🔍 Kolon Eşleşmeleri", expanded=False):
@@ -221,7 +234,7 @@ def main():
     else:
         st.session_state.filtered_data = None
 
-    # ── Landing Page ──
+    # Ana içerik
     if not st.session_state.data_loaded:
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
@@ -256,7 +269,7 @@ def main():
             )
         return
 
-    # ── Dashboard Content ──
+    # Veri yüklüyse dashboard içeriği
     data_to_use = st.session_state.filtered_data if st.session_state.filtered_data is not None else service.processed_data
 
     if data_to_use is None or data_to_use.empty:
@@ -275,21 +288,18 @@ def main():
         "invalid_dates": int(data_to_use["is_invalid_date"].sum()) if "is_invalid_date" in data_to_use.columns else 0,
     }
 
-    # ── Animated KPI Cards & Notifications ──
     render_kpi_cards(filtered_metrics)
-    check_and_notify(filtered_metrics)  # Toast notifications
+    check_and_notify(filtered_metrics)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Interactive Graph Selection (Drill-down) ──
-    # Using selectbox to simulate click on rank from risk chart
+    # İnteraktif grafik seçimi
     rank_list = sorted(data_to_use["rank_normalized"].unique())
     selected_rank = st.selectbox("🎯 Grafikten ünvan seçerek filtrele (interaktif)", ["Tümü"] + rank_list)
     if selected_rank != "Tümü":
         data_to_use = data_to_use[data_to_use["rank_normalized"] == selected_rank]
         st.info(f"🔍 '{selected_rank}' için filtrelenmiş görünüm.")
 
-    # ── Tabs ──
     tab1, tab2, tab3, tab4 = st.tabs([
         "📊 Grafikler", "📋 Risk Tabloları", "👤 Personel Kartları", "📄 Tüm Veriler"
     ])
