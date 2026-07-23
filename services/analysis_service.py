@@ -103,7 +103,13 @@ class AnalysisService:
         self.file_loaded = False
 
     def get_column_mapping_info(self) -> Dict[str, Optional[str]]:
-        """Return the last used column mapping for UI display."""
+        """
+        Return the last used column mapping for UI display.
+        
+        Returns:
+            Dict: Column mapping with keys personnel_name, rank_title, 
+                  document_name, expiry_date
+        """
         if self.parser and self.parser.column_map:
             return self.parser.column_map.copy()
         return {}
@@ -157,7 +163,6 @@ class AnalysisService:
         """Get top risky personnel."""
         if self.personnel_summary is None:
             return pd.DataFrame()
-        # Return top 20 most risky
         return self.personnel_summary.head(20).copy()
 
     def get_filtered_data(
@@ -168,9 +173,24 @@ class AnalysisService:
         personnel_search: Optional[str] = None,
         month_filter: Optional[int] = None,
         year_filter: Optional[int] = None,
+        expiry_date_start: Optional[date] = None,   # yeni
+        expiry_date_end: Optional[date] = None,     # yeni
     ) -> pd.DataFrame:
         """
         Apply filters to processed data.
+
+        Args:
+            rank_filter: List of ranks to include.
+            status_filter: List of statuses to include.
+            document_filter: List of document types to include.
+            personnel_search: Text search for personnel name.
+            month_filter: Filter by expiry month (1-12).
+            year_filter: Filter by expiry year.
+            expiry_date_start: Filter by expiry date >= this date.
+            expiry_date_end: Filter by expiry date <= this date.
+
+        Returns:
+            Filtered DataFrame.
         """
         if self.processed_data is None:
             return pd.DataFrame()
@@ -191,16 +211,26 @@ class AnalysisService:
             df = df[df["personnel_name"].str.lower().str.contains(search_lower, na=False)]
 
         if month_filter and "expiry_date" in df.columns:
-            df = df[df["expiry_date"].apply(lambda d: d.month == month_filter if d else False)]
+            df = df[df["expiry_date"].apply(lambda d: d.month == month_filter if d and pd.notna(d) else False)]
 
         if year_filter and "expiry_date" in df.columns:
-            df = df[df["expiry_date"].apply(lambda d: d.year == year_filter if d else False)]
+            df = df[df["expiry_date"].apply(lambda d: d.year == year_filter if d and pd.notna(d) else False)]
+
+        # Tarih aralığı filtresi
+        if "expiry_date" in df.columns:
+            if expiry_date_start is not None:
+                df = df[df["expiry_date"] >= expiry_date_start]
+            if expiry_date_end is not None:
+                df = df[df["expiry_date"] <= expiry_date_end]
 
         return df
 
     def get_filter_options(self) -> Dict[str, List[Any]]:
         """
         Get available filter options from the data.
+
+        Returns:
+            Dict with lists of unique values for each filter.
         """
         if self.processed_data is None:
             return {}
@@ -214,5 +244,5 @@ class AnalysisService:
             "years": sorted(
                 df["expiry_date"].dropna().apply(lambda d: d.year).unique().tolist(),
                 reverse=True
-            ),
+            ) if "expiry_date" in df.columns else [],
         }
