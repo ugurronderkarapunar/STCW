@@ -52,6 +52,7 @@ def main():
             "Belge Türü Bazlı Özet",
             "Eksik Tarihli Belgeler",
             "Tam Veri Dökümü",
+            "🔍 Ünvan ve Tarih Bazlı Excel",  # 🆕 Yeni seçenek
         ],
     )
 
@@ -98,6 +99,50 @@ def main():
 
     elif report_type == "Tam Veri Dökümü":
         render_full_data_report(data, service)
+
+    elif report_type == "🔍 Ünvan ve Tarih Bazlı Excel":
+        st.markdown("<div class='section-header'>🔍 Ünvan ve Tarih Bazlı Filtreleme</div>", unsafe_allow_html=True)
+
+        # Ünvan seçimi
+        rank_options = sorted(data["rank_normalized"].dropna().unique().tolist())
+        selected_ranks = st.multiselect("🎖️ Ünvan(lar) seçin", options=rank_options, default=[])
+
+        # Tarih aralığı seçimi
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("📅 Başlangıç Tarihi (opsiyonel)", value=None)
+        with col2:
+            end_date = st.date_input("📅 Bitiş Tarihi (opsiyonel)", value=None)
+
+        # Filtreleme butonu
+        if st.button("🔍 Filtrele ve Excel İndir", use_container_width=True):
+            if not selected_ranks:
+                st.warning("⚠️ Lütfen en az bir ünvan seçin.")
+            else:
+                # Service üzerinden filtrelenmiş veriyi al
+                filtered = service.get_filtered_data(
+                    rank_filter=selected_ranks,
+                    expiry_date_start=start_date if start_date else None,
+                    expiry_date_end=end_date if end_date else None,
+                )
+
+                if filtered.empty:
+                    st.info("Seçilen kriterlere uygun belge bulunamadı.")
+                else:
+                    st.success(f"✅ {len(filtered)} belge bulundu.")
+                    # Excel olarak indirme
+                    excel_data = ReportService.generate_excel(
+                        filtered,
+                        pd.DataFrame(),  # personel özeti boş olabilir
+                        pd.DataFrame(),  # ünvan özeti boş
+                    )
+                    st.download_button(
+                        label="📥 Excel İndir",
+                        data=excel_data,
+                        file_name=f"ozel_rapor_{date.today().strftime('%Y%m%d')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                    )
 
 
 def render_summary_report(service, data):
