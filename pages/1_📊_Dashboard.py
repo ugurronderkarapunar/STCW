@@ -46,8 +46,7 @@ def init_session_state():
         st.session_state.last_file_hash = None
     if "data_version" not in st.session_state:
         st.session_state.data_version = 0
-    if "update_done" not in st.session_state:          # <-- YENİ
-        st.session_state.update_done = False
+   
 
 
 def generate_sample_data() -> pd.DataFrame:
