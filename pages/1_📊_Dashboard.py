@@ -44,6 +44,8 @@ def init_session_state():
         st.session_state.default_status_filter = []
     if "last_file_hash" not in st.session_state:
         st.session_state.last_file_hash = None
+    if "data_version" not in st.session_state:
+        st.session_state.data_version = 0
 
 
 def generate_sample_data() -> pd.DataFrame:
@@ -113,6 +115,13 @@ def main():
     )
 
     init_session_state()
+
+    # 🔁 VERİ SÜRÜM KONTROLÜ: Eğer servisteki sürüm değişmişse sayfayı yeniden başlat
+    if st.session_state.data_loaded:
+        service = st.session_state.analysis_service
+        if service.data_version != st.session_state.data_version:
+            st.session_state.data_version = service.data_version
+            st.rerun()
 
     if st.session_state.theme == "dark":
         st.markdown(get_dark_theme_css(), unsafe_allow_html=True)
@@ -184,9 +193,7 @@ def main():
 
     # Filtreler ve mapping debug
     if st.session_state.data_loaded:
-        # ===== ANAHTAR ÇÖZÜM =====
-        # Her Dashboard çalıştığında filtered_data'yı sıfırla, güncel processed_data'dan
-        # yeniden hesaplansın. Böylece Belge Düzenleme'deki değişiklikler anında yansır.
+        # filtered_data'yı her seferinde sıfırla (güncel veriden hesaplansın)
         st.session_state.filtered_data = None
 
         filter_options = service.get_filter_options()
@@ -199,7 +206,7 @@ def main():
             if st.session_state.default_status_filter:
                 filters["status_filter"] = st.session_state.default_status_filter
 
-        # Manuel yenileme butonu (artık opsiyonel, ama kalsın)
+        # Manuel yenileme butonu (opsiyonel)
         st.sidebar.markdown("---")
         if st.sidebar.button("🔄 Veriyi Yenile", use_container_width=True):
             st.session_state.filtered_data = None
