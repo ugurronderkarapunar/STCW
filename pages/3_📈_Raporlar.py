@@ -1,6 +1,6 @@
 """
 Reports Page
-Generate and download detailed reports.
+Generate and download detailed reports in Excel format.
 """
 
 import streamlit as st
@@ -24,7 +24,7 @@ def main():
         unsafe_allow_html=True,
     )
     st.markdown(
-        "<p style='color: #7F8C8D;'>Detaylı raporlar oluşturun ve indirin.</p>",
+        "<p style='color: #7F8C8D;'>Detaylı raporlar oluşturun ve Excel olarak indirin.</p>",
         unsafe_allow_html=True,
     )
 
@@ -52,7 +52,7 @@ def main():
             "Belge Türü Bazlı Özet",
             "Eksik Tarihli Belgeler",
             "Tam Veri Dökümü",
-            "🔍 Ünvan ve Tarih Bazlı Excel",  # 🆕 Yeni seçenek
+            "🔍 Ünvan ve Tarih Bazlı Excel",
         ],
     )
 
@@ -103,23 +103,19 @@ def main():
     elif report_type == "🔍 Ünvan ve Tarih Bazlı Excel":
         st.markdown("<div class='section-header'>🔍 Ünvan ve Tarih Bazlı Filtreleme</div>", unsafe_allow_html=True)
 
-        # Ünvan seçimi
         rank_options = sorted(data["rank_normalized"].dropna().unique().tolist())
         selected_ranks = st.multiselect("🎖️ Ünvan(lar) seçin", options=rank_options, default=[])
 
-        # Tarih aralığı seçimi
         col1, col2 = st.columns(2)
         with col1:
             start_date = st.date_input("📅 Başlangıç Tarihi (opsiyonel)", value=None)
         with col2:
             end_date = st.date_input("📅 Bitiş Tarihi (opsiyonel)", value=None)
 
-        # Filtreleme butonu
         if st.button("🔍 Filtrele ve Excel İndir", use_container_width=True):
             if not selected_ranks:
                 st.warning("⚠️ Lütfen en az bir ünvan seçin.")
             else:
-                # Service üzerinden filtrelenmiş veriyi al
                 filtered = service.get_filtered_data(
                     rank_filter=selected_ranks,
                     expiry_date_start=start_date if start_date else None,
@@ -130,11 +126,10 @@ def main():
                     st.info("Seçilen kriterlere uygun belge bulunamadı.")
                 else:
                     st.success(f"✅ {len(filtered)} belge bulundu.")
-                    # Excel olarak indirme
                     excel_data = ReportService.generate_excel(
                         filtered,
-                        pd.DataFrame(),  # personel özeti boş olabilir
-                        pd.DataFrame(),  # ünvan özeti boş
+                        pd.DataFrame(),
+                        pd.DataFrame(),
                     )
                     st.download_button(
                         label="📥 Excel İndir",
@@ -148,15 +143,12 @@ def main():
 def render_summary_report(service, data):
     """Render executive summary report."""
     metrics = service.get_kpi_metrics()
-
     today = date.today()
     summary_text = ReportService.generate_summary_text(metrics)
 
     st.markdown("<div class='section-header'>📋 Yönetici Özeti</div>", unsafe_allow_html=True)
-
     st.code(summary_text, language=None)
 
-    # Download buttons
     col1, col2 = st.columns(2)
     with col1:
         st.download_button(
@@ -167,14 +159,12 @@ def render_summary_report(service, data):
             use_container_width=True,
         )
 
-    # Risk highlights
     st.markdown("<div class='section-header'>⚠️ Risk Özeti</div>", unsafe_allow_html=True)
 
     expired_personnel = data[data["status"] == "EXPIRED"]["personnel_name"].unique()
     critical_personnel = data[data["status"] == "CRITICAL"]["personnel_name"].unique()
 
     col1, col2 = st.columns(2)
-
     with col1:
         st.markdown("**🔴 Süresi Geçmiş Belgesi Olan Personel:**")
         if len(expired_personnel) > 0:
@@ -197,7 +187,7 @@ def render_summary_report(service, data):
 
 
 def render_filtered_report(data, status, title):
-    """Render report for specific status."""
+    """Render report for specific status with Excel download."""
     filtered = data[data["status"] == status].copy()
 
     st.markdown(f"<div class='section-header'>{title}</div>", unsafe_allow_html=True)
@@ -220,19 +210,23 @@ def render_filtered_report(data, status, title):
 
     st.dataframe(display_df, use_container_width=True, hide_index=True, height=500)
 
-    # Download
-    csv_data = ReportService.generate_csv(filtered)
+    # Excel indirme
+    excel_data = ReportService.generate_excel(
+        filtered,
+        pd.DataFrame(),
+        pd.DataFrame(),
+    )
     st.download_button(
-        label=f"📥 CSV İndir ({len(filtered)} kayıt)",
-        data=csv_data,
-        file_name=f"rapor_{status.lower()}_{date.today().strftime('%Y%m%d')}.csv",
-        mime="text/csv",
+        label=f"📥 Excel İndir ({len(filtered)} kayıt)",
+        data=excel_data,
+        file_name=f"rapor_{status.lower()}_{date.today().strftime('%Y%m%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
     )
 
 
 def render_dataframe_report(df, title, columns, labels):
-    """Render a styled dataframe report."""
+    """Render a styled dataframe report with Excel download."""
     st.markdown(f"<div class='section-header'>{title}</div>", unsafe_allow_html=True)
 
     if df is None or df.empty:
@@ -244,18 +238,23 @@ def render_dataframe_report(df, title, columns, labels):
 
     st.dataframe(display_df, use_container_width=True, hide_index=True, height=500)
 
-    csv_data = ReportService.generate_csv(display_df)
+    # Excel indirme
+    excel_data = ReportService.generate_excel(
+        display_df,
+        pd.DataFrame(),
+        pd.DataFrame(),
+    )
     st.download_button(
-        label="📥 CSV İndir",
-        data=csv_data,
-        file_name=f"rapor_{date.today().strftime('%Y%m%d')}.csv",
-        mime="text/csv",
+        label="📥 Excel İndir",
+        data=excel_data,
+        file_name=f"rapor_{date.today().strftime('%Y%m%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
     )
 
 
 def render_full_data_report(data, service):
-    """Render full data dump with all sheets as Excel."""
+    """Render full data dump with Excel download."""
     st.markdown("<div class='section-header'>📄 Tam Veri Dökümü</div>", unsafe_allow_html=True)
 
     st.markdown(f"**Toplam Kayıt:** {len(data)}")
@@ -270,24 +269,13 @@ def render_full_data_report(data, service):
         service.rank_summary if service.rank_summary is not None else pd.DataFrame(),
     )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.download_button(
-            label="📥 Tam Excel Raporu İndir",
-            data=excel_data,
-            file_name=f"tam_rapor_{date.today().strftime('%Y%m%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-        )
-    with col2:
-        csv_data = ReportService.generate_csv(data)
-        st.download_button(
-            label="📥 CSV İndir",
-            data=csv_data,
-            file_name=f"tum_veri_{date.today().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
+    st.download_button(
+        label="📥 Tam Excel Raporu İndir",
+        data=excel_data,
+        file_name=f"tam_rapor_{date.today().strftime('%Y%m%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+    )
 
 
 if __name__ == "__main__":
