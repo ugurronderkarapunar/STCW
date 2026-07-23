@@ -1,7 +1,7 @@
 """
 Belge Düzenleme Sayfası
 Personel belgelerinin başlangıç/bitiş tarihlerini güncelleyin.
-Değişiklikler sayfa yeniden yüklenmeden anında görünür.
+Değişiklikler sayfa yeniden yüklendiğinde görünür.
 """
 
 import streamlit as st
@@ -68,7 +68,7 @@ def main():
     # Belge düzenleme kartları
     for idx, row in person_df.iterrows():
         doc = row["document_name"]
-        # Güncel veriyi her seferinde service.processed_data'dan tekrar oku (güncellenmiş olabilir)
+        # Güncel veriyi her seferinde service.processed_data'dan tekrar oku
         updated_row = service.processed_data.loc[idx]
         current_expiry = updated_row.get("expiry_date")
         current_start = updated_row.get("start_date") if "start_date" in updated_row.index else None
@@ -118,12 +118,7 @@ def main():
                     )
                     if success:
                         st.success(f"✅ '{doc}' güncellendi!")
-                        # Sayfayı yeniden yüklemeden, sadece yukarıdaki değişkenleri yenilemek için
-                        # st.rerun() kullanmıyoruz. Bunun yerine form submit ile çalışabilir ama
-                        # şimdilik butona basıldığında sayfa doğal akışında devam eder,
-                        # aşağıdaki kod tekrar çalışır ve güncel veriyi gösterir.
-                        # Bu nedenle bir saniye bekleyip aynı sayfada kalması için küçük bir numara:
-                        st.experimental_rerun()
+                        st.rerun()  # Sayfayı yenileyerek güncel veriyi göster
                     else:
                         st.error("Güncelleme başarısız oldu.")
 
@@ -147,7 +142,7 @@ def main():
                     expiry_date=expiry,
                 )
             st.success(f"Tüm belgeler {common_start.strftime('%d.%m.%Y')} tarihine göre güncellendi.")
-            st.experimental_rerun()
+            st.rerun()
 
 
 if __name__ == "__main__":
