@@ -101,7 +101,7 @@ def get_custom_css() -> str:
             text-align: center;
             border-left: 4px solid var(--primary);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
-            animation: fadeIn 0.6s ease-out;
+            animation: fadeIn 1s ease-out !important;
         }
         .kpi-card:hover {
             transform: translateY(-4px);
