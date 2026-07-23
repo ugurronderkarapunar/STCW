@@ -2,7 +2,7 @@
 Main Dashboard Page
 Displays KPIs, charts, risk tables, and personnel cards.
 """
-
+import hashlib
 import streamlit as st
 import pandas as pd
 from datetime import date
