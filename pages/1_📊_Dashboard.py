@@ -44,9 +44,6 @@ def init_session_state():
         st.session_state.default_status_filter = []
     if "last_file_hash" not in st.session_state:
         st.session_state.last_file_hash = None
-    if "data_version" not in st.session_state:
-        st.session_state.data_version = 0
-   
 
 
 def generate_sample_data() -> pd.DataFrame:
@@ -187,12 +184,6 @@ def main():
 
     # Filtreler ve mapping debug
     if st.session_state.data_loaded:
-        # Eğer Belge Düzenleme sayfasından güncelleme sinyali geldiyse,
-        # filtered_data'yı temizle ve sinyali sıfırla.
-        if st.session_state.update_done:
-            st.session_state.filtered_data = None
-            st.session_state.update_done = False
-
         filter_options = service.get_filter_options()
         filters = render_sidebar_filters(filter_options)
 
@@ -203,17 +194,7 @@ def main():
             if st.session_state.default_status_filter:
                 filters["status_filter"] = st.session_state.default_status_filter
 
-        # 🔁 Versiyon kontrolü: eğer servis versiyonu değiştiyse filtered_data'yı sıfırla
-        if service.data_version != st.session_state.data_version:
-            st.session_state.filtered_data = None
-            st.session_state.data_version = service.data_version
-
-        # Manuel yenileme butonu
-        st.sidebar.markdown("---")
-        if st.sidebar.button("🔄 Veriyi Yenile", use_container_width=True):
-            st.session_state.filtered_data = None
-            st.rerun()
-
+        # Her seferinde güncel veriyi kullanarak yeniden filtreleme yap
         filtered_data = service.get_filtered_data(
             rank_filter=filters.get("rank_filter") if filters.get("rank_filter") else None,
             status_filter=filters.get("status_filter") if filters.get("status_filter") else None,
