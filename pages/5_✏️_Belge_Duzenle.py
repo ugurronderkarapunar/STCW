@@ -33,13 +33,11 @@ def main():
 
     service = st.session_state.analysis_service
 
-    # Her seferinde güncel veriyi doğrudan service'den al
+    # Güncel veriyi her seferinde doğrudan servisten al
     data = service.processed_data
 
-    # Personel listesi
     personnel_list = sorted(data["personnel_name"].unique())
 
-    # Seçili personeli session_state'te tut
     if "selected_person" not in st.session_state:
         st.session_state.selected_person = personnel_list[0] if personnel_list else None
 
@@ -58,17 +56,14 @@ def main():
     if not selected_person:
         return
 
-    # Güncel veriden seçili personele ait satırları al
     person_df = data[data["personnel_name"] == selected_person].copy()
     rank = person_df["rank_normalized"].iloc[0] if not person_df.empty else "Bilinmiyor"
 
     st.markdown(f"**Ünvan:** {rank}")
     st.markdown("---")
 
-    # Belge düzenleme kartları
     for idx, row in person_df.iterrows():
         doc = row["document_name"]
-        # Güncel veriyi her seferinde service.processed_data'dan tekrar oku
         updated_row = service.processed_data.loc[idx]
         current_expiry = updated_row.get("expiry_date")
         current_start = updated_row.get("start_date") if "start_date" in updated_row.index else None
@@ -118,13 +113,12 @@ def main():
                     )
                     if success:
                         st.success(f"✅ '{doc}' güncellendi!")
-                        st.rerun()  # Sayfayı yenileyerek güncel veriyi göster
+                        st.rerun()
                     else:
                         st.error("Güncelleme başarısız oldu.")
 
             st.markdown("---")
 
-    # Toplu güncelleme
     st.markdown("## 🔁 Tüm belgeleri aynı anda güncelle")
     st.caption("Aynı başlangıç tarihini tüm belgelere uygular, bitişleri otomatik hesaplar.")
     common_start = st.date_input("Ortak başlangıç tarihi", value=None, key="bulk_start")
