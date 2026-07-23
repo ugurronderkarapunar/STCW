@@ -1,6 +1,7 @@
 """
 Belge Düzenleme Sayfası
 Personel belgelerinin başlangıç/bitiş tarihlerini güncelleyin.
+Değişiklikler sayfa yeniden yüklenmeden anında görünür.
 """
 
 import streamlit as st
@@ -31,16 +32,17 @@ def main():
         return
 
     service = st.session_state.analysis_service
+
+    # Her seferinde güncel veriyi doğrudan service'den al
     data = service.processed_data
 
-    # Personel listesi (güncel veriden)
+    # Personel listesi
     personnel_list = sorted(data["personnel_name"].unique())
 
-    # Seçili personeli session_state'te tut (sayfa yenilenince kaybolmasın)
+    # Seçili personeli session_state'te tut
     if "selected_person" not in st.session_state:
         st.session_state.selected_person = personnel_list[0] if personnel_list else None
 
-    # Seçim kutusu, kayıtlı değeri varsa o seçili gelsin
     current_index = 0
     if st.session_state.selected_person in personnel_list:
         current_index = personnel_list.index(st.session_state.selected_person)
@@ -51,12 +53,12 @@ def main():
         index=current_index,
         key="person_selector"
     )
-    # Seçimi kaydet (her etkileşimde güncellenir)
     st.session_state.selected_person = selected_person
 
     if not selected_person:
         return
 
+    # Güncel veriden seçili personele ait satırları al
     person_df = data[data["personnel_name"] == selected_person].copy()
     rank = person_df["rank_normalized"].iloc[0] if not person_df.empty else "Bilinmiyor"
 
@@ -66,8 +68,10 @@ def main():
     # Belge düzenleme kartları
     for idx, row in person_df.iterrows():
         doc = row["document_name"]
-        current_expiry = row.get("expiry_date")
-        current_start = row.get("start_date") if "start_date" in row.index else None
+        # Güncel veriyi her seferinde service.processed_data'dan tekrar oku (güncellenmiş olabilir)
+        updated_row = service.processed_data.loc[idx]
+        current_expiry = updated_row.get("expiry_date")
+        current_start = updated_row.get("start_date") if "start_date" in updated_row.index else None
 
         with st.container():
             col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
@@ -114,7 +118,12 @@ def main():
                     )
                     if success:
                         st.success(f"✅ '{doc}' güncellendi!")
-                        st.rerun()
+                        # Sayfayı yeniden yüklemeden, sadece yukarıdaki değişkenleri yenilemek için
+                        # st.rerun() kullanmıyoruz. Bunun yerine form submit ile çalışabilir ama
+                        # şimdilik butona basıldığında sayfa doğal akışında devam eder,
+                        # aşağıdaki kod tekrar çalışır ve güncel veriyi gösterir.
+                        # Bu nedenle bir saniye bekleyip aynı sayfada kalması için küçük bir numara:
+                        st.experimental_rerun()
                     else:
                         st.error("Güncelleme başarısız oldu.")
 
@@ -138,7 +147,7 @@ def main():
                     expiry_date=expiry,
                 )
             st.success(f"Tüm belgeler {common_start.strftime('%d.%m.%Y')} tarihine göre güncellendi.")
-            st.rerun()
+            st.experimental_rerun()
 
 
 if __name__ == "__main__":
