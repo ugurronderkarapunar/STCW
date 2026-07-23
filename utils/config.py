@@ -1,7 +1,7 @@
 """
 Configuration constants for the Personnel Document Tracking System.
 Includes column mappings, status definitions, color palettes, rank lists,
-visual identity, and notification thresholds.
+visual identity, notification thresholds, and document validity periods.
 """
 
 from typing import Dict, List, Tuple
@@ -50,7 +50,7 @@ STATUS_MAP: Dict[str, Tuple[str, str, str]] = {
 }
 
 # ─── Known Rank/Title List (for normalization) ───
-KNOWN_RANKS: List[str] = []   # Dosyadan otomatik öğrenilir
+KNOWN_RANKS: List[str] = []
 
 # ─── Color Palette (Corporate) ───
 COLORS: Dict[str, str] = {
@@ -87,12 +87,36 @@ MAX_FILE_SIZE_MB: int = 200
 
 # ─── Visual Identity ───
 APP_NAME: str = "Personel Belge Takip Sistemi"
-APP_LOGO_URL: str = "https://upload.wikimedia.org/wikipedia/tr/5/50/%C5%9Eehir_Hatlar%C4%B1_logo.png?_=20220616202749"
-COMPANY_NAME: str = "İBB ŞEHİR HATLARI."
+APP_LOGO_URL: str = "https://img.icons8.com/fluency/96/document.png"
+COMPANY_NAME: str = "şehir Hatları A.Ş."
 
 # ─── Notification Thresholds ───
 NOTIFICATION_THRESHOLDS: Dict[str, int] = {
-    "expired_warning": 10,      # 10'dan fazla süresi geçmiş belge varsa uyar
-    "critical_warning": 20,     # 20'den fazla kritik belge varsa uyar
-    "missing_date_warning": 15  # 15'den fazla tarihsiz belge varsa uyar
+    "expired_warning": 10,
+    "critical_warning": 20,
+    "missing_date_warning": 15
+}
+
+# ─── Document Validity Periods ───
+DEFAULT_DOCUMENT_VALIDITY_DAYS: int = 365  # 1 yıl
+
+DOCUMENT_VALIDITY_MAP: Dict[str, int] = {
+    "sağlık": 730,
+    "gemiadamları sağlık": 730,
+    "gemi adamı sağlık": 730,
+    "stcw": 1825,
+    "src": 1825,
+    "goc": 1825,
+    "yangın": 1825,
+    "ilk yardım": 1825,
+    "cankurtarma": 1825,
+    "güvenlik": 1825,
+    "telsiz": 1825,
+    "gemi adamı cüzdan": 1825,
+    "gemiadamı cüzdan": 1825,
+    "pasaport": 3650,
+    "vize": 730,
+    "ro-ro": 1825,
+    "ecdıs": 1825,
+    "arpa": 1825,
 }
