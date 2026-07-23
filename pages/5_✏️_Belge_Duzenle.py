@@ -33,8 +33,26 @@ def main():
     service = st.session_state.analysis_service
     data = service.processed_data
 
+    # Personel listesi (güncel veriden)
     personnel_list = sorted(data["personnel_name"].unique())
-    selected_person = st.selectbox("👤 Personel Seçin", options=personnel_list)
+
+    # Seçili personeli session_state'te tut (sayfa yenilenince kaybolmasın)
+    if "selected_person" not in st.session_state:
+        st.session_state.selected_person = personnel_list[0] if personnel_list else None
+
+    # Seçim kutusu, kayıtlı değeri varsa o seçili gelsin
+    current_index = 0
+    if st.session_state.selected_person in personnel_list:
+        current_index = personnel_list.index(st.session_state.selected_person)
+
+    selected_person = st.selectbox(
+        "👤 Personel Seçin",
+        options=personnel_list,
+        index=current_index,
+        key="person_selector"
+    )
+    # Seçimi kaydet (her etkileşimde güncellenir)
+    st.session_state.selected_person = selected_person
 
     if not selected_person:
         return
@@ -45,6 +63,7 @@ def main():
     st.markdown(f"**Ünvan:** {rank}")
     st.markdown("---")
 
+    # Belge düzenleme kartları
     for idx, row in person_df.iterrows():
         doc = row["document_name"]
         current_expiry = row.get("expiry_date")
@@ -101,6 +120,7 @@ def main():
 
             st.markdown("---")
 
+    # Toplu güncelleme
     st.markdown("## 🔁 Tüm belgeleri aynı anda güncelle")
     st.caption("Aynı başlangıç tarihini tüm belgelere uygular, bitişleri otomatik hesaplar.")
     common_start = st.date_input("Ortak başlangıç tarihi", value=None, key="bulk_start")
