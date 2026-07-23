@@ -102,6 +102,12 @@ class AnalysisService:
         self.warnings = []
         self.file_loaded = False
 
+    def get_column_mapping_info(self) -> Dict[str, Optional[str]]:
+        """Return the last used column mapping for UI display."""
+        if self.parser and self.parser.column_map:
+            return self.parser.column_map.copy()
+        return {}
+
     def get_kpi_metrics(self) -> Dict[str, Any]:
         """
         Calculate KPI metrics for dashboard.
@@ -165,17 +171,6 @@ class AnalysisService:
     ) -> pd.DataFrame:
         """
         Apply filters to processed data.
-
-        Args:
-            rank_filter: List of ranks to include.
-            status_filter: List of statuses to include.
-            document_filter: List of document types to include.
-            personnel_search: Text search for personnel name.
-            month_filter: Filter by expiry month (1-12).
-            year_filter: Filter by expiry year.
-
-        Returns:
-            Filtered DataFrame.
         """
         if self.processed_data is None:
             return pd.DataFrame()
@@ -206,9 +201,6 @@ class AnalysisService:
     def get_filter_options(self) -> Dict[str, List[Any]]:
         """
         Get available filter options from the data.
-
-        Returns:
-            Dict with lists of unique values for each filter.
         """
         if self.processed_data is None:
             return {}
