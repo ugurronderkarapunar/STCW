@@ -5,7 +5,7 @@ Generate and download detailed reports in Excel format.
 
 import streamlit as st
 import pandas as pd
-from datetime import date, datetime
+from datetime import date
 from components.styles import get_custom_css
 from services.report_service import ReportService
 
@@ -210,7 +210,7 @@ def render_filtered_report(data, status, title):
 
     st.dataframe(display_df, use_container_width=True, hide_index=True, height=500)
 
-    # Excel indirme
+    # Excel download – absolutely no CSV
     excel_data = ReportService.generate_excel(
         filtered,
         pd.DataFrame(),
@@ -238,7 +238,7 @@ def render_dataframe_report(df, title, columns, labels):
 
     st.dataframe(display_df, use_container_width=True, hide_index=True, height=500)
 
-    # Excel indirme
+    # Excel download
     excel_data = ReportService.generate_excel(
         display_df,
         pd.DataFrame(),
@@ -259,10 +259,8 @@ def render_full_data_report(data, service):
 
     st.markdown(f"**Toplam Kayıt:** {len(data)}")
 
-    # Preview
     st.dataframe(data, use_container_width=True, hide_index=True, height=400)
 
-    # Generate Excel with all sheets
     excel_data = ReportService.generate_excel(
         data,
         service.personnel_summary if service.personnel_summary is not None else pd.DataFrame(),
