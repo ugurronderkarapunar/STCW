@@ -194,7 +194,7 @@ class AnalysisService:
     ) -> bool:
         """
         Update the dates of a specific personnel document.
-        Re-processes the data afterwards.
+        Re-processes the data and all summaries afterwards.
         """
         if self.processed_data is None:
             return False
@@ -205,22 +205,26 @@ class AnalysisService:
         if not mask.any():
             return False
 
+        # Update expiry date (and optionally start date)
         if expiry_date is not None:
             self.processed_data.loc[mask, "expiry_date"] = expiry_date
             self.processed_data.loc[mask, "expiry_date_raw"] = expiry_date.strftime("%d.%m.%Y")
+        elif start_date is not None:
+            # calculate expiry based on validity map
+            doc_lower = document_name.lower()
+            validity_days = DEFAULT_DOCUMENT_VALIDITY_DAYS
+            for key, days in DOCUMENT_VALIDITY_MAP.items():
+                if key in doc_lower:
+                    validity_days = days
+                    break
+            calc_expiry = start_date + timedelta(days=validity_days)
+            self.processed_data.loc[mask, "expiry_date"] = calc_expiry
+            self.processed_data.loc[mask, "expiry_date_raw"] = calc_expiry.strftime("%d.%m.%Y")
         else:
-            # If no expiry given but start_date provided, calculate it
-            if start_date is not None:
-                doc_lower = document_name.lower()
-                validity_days = DEFAULT_DOCUMENT_VALIDITY_DAYS
-                for key, days in DOCUMENT_VALIDITY_MAP.items():
-                    if key in doc_lower:
-                        validity_days = days
-                        break
-                calc_expiry = start_date + timedelta(days=validity_days)
-                self.processed_data.loc[mask, "expiry_date"] = calc_expiry
-                self.processed_data.loc[mask, "expiry_date_raw"] = calc_expiry.strftime("%d.%m.%Y")
+            # No changes requested
+            return False
 
+        # Recalculate remaining days and status for updated rows
         from utils.date_parser import calculate_remaining_days, classify_document
         today = date.today()
         for idx in self.processed_data[mask].index:
@@ -233,7 +237,10 @@ class AnalysisService:
             self.processed_data.at[idx, "status_color"] = STATUS_MAP[new_status][2]
             self.processed_data.at[idx, "status_emoji"] = STATUS_MAP[new_status][0]
 
-        # Re-create summaries
+        # *** CRITICAL: Sync the processor's internal DataFrame ***
+        self.processor.processed_df = self.processed_data.copy()
+
+        # Recreate all summaries so dashboard/other pages see updates
         self.personnel_summary = self.processor.create_personnel_summary()
         self.rank_summary = self.processor.create_rank_summary()
         self.document_summary = self.processor.get_document_type_summary()
