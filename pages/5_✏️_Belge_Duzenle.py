@@ -1,7 +1,6 @@
 """
 Belge Düzenleme Sayfası
 Personel belgelerinin başlangıç/bitiş tarihlerini güncelleyin.
-Değişiklikler Dashboard'a anında yansır.
 """
 
 import streamlit as st
@@ -117,8 +116,6 @@ def main():
                         expiry_date=new_expiry if new_expiry else None,
                     )
                     if success:
-                        # Dashboard'ın güncellenmesi için sinyal gönder
-                        st.session_state.update_done = True
                         st.success(f"✅ '{doc}' güncellendi!")
                         st.rerun()
                     else:
@@ -143,8 +140,6 @@ def main():
                     start_date=common_start,
                     expiry_date=expiry,
                 )
-            # Dashboard'a sinyal gönder
-            st.session_state.update_done = True
             st.success(f"Tüm belgeler {common_start.strftime('%d.%m.%Y')} tarihine göre güncellendi.")
             st.rerun()
 
