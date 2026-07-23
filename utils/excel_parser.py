@@ -1,5 +1,6 @@
 """
 Excel/CSV file parser with automatic column detection.
+Uses weighted scoring to avoid misclassification (e.g., "Ad" as document name).
 Handles large files efficiently with chunked reading.
 """
 
@@ -9,6 +10,7 @@ from typing import Optional, Dict, List, Tuple, Any
 import logging
 from pathlib import Path
 import io
+import re
 
 from utils.config import (
     PERSONNEL_NAME_PATTERNS,
@@ -25,7 +27,7 @@ logger = logging.getLogger(__name__)
 class ColumnMapper:
     """
     Automatically maps DataFrame columns to expected fields
-    using fuzzy pattern matching.
+    using improved weighted scoring to avoid misclassification.
     """
 
     def __init__(self, df: pd.DataFrame):
@@ -39,34 +41,84 @@ class ColumnMapper:
         }
 
     def _normalize(self, text: str) -> str:
-        """Normalize column name for comparison."""
-        return str(text).strip().lower().replace("_", " ").replace("-", " ")
+        """Normalize column name: lowercase, remove punctuation, collapse spaces."""
+        text = str(text).strip().lower()
+        # Noktalama işaretlerini temizle (Pzs.tanımı -> pzstanımı gibi)
+        text = re.sub(r'[^\w\s]', '', text)
+        # Alt tire ve tireyi boşluğa çevir
+        text = text.replace('_', ' ').replace('-', ' ')
+        # Fazla boşlukları tek boşluğa indir
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
 
-    def _match_column(self, patterns: List[str]) -> Optional[str]:
+    def _score_column_for_category(self, col: str, patterns: List[str]) -> int:
         """
-        Find the best matching column from the DataFrame using pattern list.
-        Returns the first match found.
+        Calculate a score for how well a column matches a set of patterns.
+        - Exact match (after normalization) gets very high score.
+        - Longer pattern match gets higher score.
         """
-        for col in self.columns:
-            normalized_col = self._normalize(col)
-            for pattern in patterns:
-                normalized_pattern = self._normalize(pattern)
-                # Exact match
-                if normalized_col == normalized_pattern:
-                    return col
-                # Contains match
-                if normalized_pattern in normalized_col or normalized_col in normalized_pattern:
-                    return col
-        return None
+        col_norm = self._normalize(col)
+        best_score = 0
+        for pattern in patterns:
+            pattern_norm = self._normalize(pattern)
+            if col_norm == pattern_norm:
+                # Tam eşleşme: çok yüksek puan
+                score = 1000 + len(pattern_norm) * 10
+            elif pattern_norm in col_norm or col_norm in pattern_norm:
+                # Kısmi eşleşme: daha uzun desen daha spesifik
+                score = 500 + len(pattern_norm)
+            else:
+                # Kelime bazında: bütün kelimeler varsa
+                pattern_words = set(pattern_norm.split())
+                col_words = set(col_norm.split())
+                if pattern_words and pattern_words.issubset(col_words):
+                    score = 300 + len(pattern_words) * 50
+                else:
+                    score = 0
+            if score > best_score:
+                best_score = score
+        return best_score
 
     def map_all(self) -> Dict[str, Optional[str]]:
-        """Run all column mappings."""
-        self.column_map["personnel_name"] = self._match_column(PERSONNEL_NAME_PATTERNS)
-        self.column_map["rank_title"] = self._match_column(RANK_TITLE_PATTERNS)
-        self.column_map["document_name"] = self._match_column(DOCUMENT_NAME_PATTERNS)
-        self.column_map["expiry_date"] = self._match_column(EXPIRY_DATE_PATTERNS)
+        """
+        Run all column mappings using weighted scoring.
+        Each column is assigned to the category with the highest score.
+        """
+        categories = {
+            "personnel_name": PERSONNEL_NAME_PATTERNS,
+            "rank_title": RANK_TITLE_PATTERNS,
+            "document_name": DOCUMENT_NAME_PATTERNS,
+            "expiry_date": EXPIRY_DATE_PATTERNS,
+        }
 
-        logger.info(f"Column mapping result: {self.column_map}")
+        # For each column, compute score for each category
+        col_best_category = {}
+        for col in self.columns:
+            best_cat = None
+            best_score = 0
+            for cat, patterns in categories.items():
+                score = self._score_column_for_category(col, patterns)
+                if score > best_score:
+                    best_score = score
+                    best_cat = cat
+            # Only assign if score is above a threshold
+            if best_score > 10:
+                col_best_category[col] = best_cat
+            else:
+                logger.debug(f"Column '{col}' did not match any category significantly (score={best_score})")
+
+        # Now assign each category the best column (if any)
+        for cat in categories:
+            candidates = [(col, self._score_column_for_category(col, categories[cat]))
+                          for col in self.columns if col_best_category.get(col) == cat]
+            if candidates:
+                # Pick the column with the highest score for this category
+                best_col = max(candidates, key=lambda x: x[1])[0]
+                self.column_map[cat] = best_col
+                logger.info(f"Category '{cat}' mapped to column '{best_col}' (score={max(candidates, key=lambda x: x[1])[1]})")
+            else:
+                logger.warning(f"No column matched category '{cat}'")
+
         return self.column_map
 
     def get_mapped_columns(self) -> List[Optional[str]]:
