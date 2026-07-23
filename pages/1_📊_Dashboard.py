@@ -184,6 +184,11 @@ def main():
 
     # Filtreler ve mapping debug
     if st.session_state.data_loaded:
+        # ===== ANAHTAR ÇÖZÜM =====
+        # Her Dashboard çalıştığında filtered_data'yı sıfırla, güncel processed_data'dan
+        # yeniden hesaplansın. Böylece Belge Düzenleme'deki değişiklikler anında yansır.
+        st.session_state.filtered_data = None
+
         filter_options = service.get_filter_options()
         filters = render_sidebar_filters(filter_options)
 
@@ -194,7 +199,12 @@ def main():
             if st.session_state.default_status_filter:
                 filters["status_filter"] = st.session_state.default_status_filter
 
-        # Her seferinde güncel veriyi kullanarak yeniden filtreleme yap
+        # Manuel yenileme butonu (artık opsiyonel, ama kalsın)
+        st.sidebar.markdown("---")
+        if st.sidebar.button("🔄 Veriyi Yenile", use_container_width=True):
+            st.session_state.filtered_data = None
+            st.rerun()
+
         filtered_data = service.get_filtered_data(
             rank_filter=filters.get("rank_filter") if filters.get("rank_filter") else None,
             status_filter=filters.get("status_filter") if filters.get("status_filter") else None,
