@@ -88,7 +88,7 @@ MAX_FILE_SIZE_MB: int = 200
 # ─── Visual Identity ───
 APP_NAME: str = "Personel Belge Takip Sistemi"
 APP_LOGO_URL: str = "https://img.icons8.com/fluency/96/document.png"
-COMPANY_NAME: str = "şehir Hatları A.Ş."
+COMPANY_NAME: str = "Şehir Hatları A.Ş."
 
 # ─── Notification Thresholds ───
 NOTIFICATION_THRESHOLDS: Dict[str, int] = {
