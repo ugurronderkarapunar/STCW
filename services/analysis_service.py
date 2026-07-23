@@ -33,6 +33,7 @@ class AnalysisService:
         self.errors: List[str] = []
         self.warnings: List[str] = []
         self.file_loaded: bool = False
+        self.data_version: int = 0          # Güncelleme takibi için
 
     def load_file(self, file_bytes: bytes, filename: str) -> bool:
         self.reset()
@@ -84,6 +85,7 @@ class AnalysisService:
         self.errors = []
         self.warnings = []
         self.file_loaded = False
+        self.data_version = 0
 
     def get_column_mapping_info(self) -> Dict[str, Optional[str]]:
         if self.parser and self.parser.column_map:
@@ -201,16 +203,16 @@ class AnalysisService:
 
         mask = (self.processed_data["personnel_name"] == personnel_name) & \
                (self.processed_data["document_name"] == document_name)
-
         if not mask.any():
             return False
 
-        # Update expiry date (and optionally start date)
+        # Yeni bir DataFrame oluşturup güncelleme yapalım (referansı kırmak için)
+        df = self.processed_data.copy()
+
         if expiry_date is not None:
-            self.processed_data.loc[mask, "expiry_date"] = expiry_date
-            self.processed_data.loc[mask, "expiry_date_raw"] = expiry_date.strftime("%d.%m.%Y")
+            df.loc[mask, "expiry_date"] = expiry_date
+            df.loc[mask, "expiry_date_raw"] = expiry_date.strftime("%d.%m.%Y")
         elif start_date is not None:
-            # calculate expiry based on validity map
             doc_lower = document_name.lower()
             validity_days = DEFAULT_DOCUMENT_VALIDITY_DAYS
             for key, days in DOCUMENT_VALIDITY_MAP.items():
@@ -218,32 +220,34 @@ class AnalysisService:
                     validity_days = days
                     break
             calc_expiry = start_date + timedelta(days=validity_days)
-            self.processed_data.loc[mask, "expiry_date"] = calc_expiry
-            self.processed_data.loc[mask, "expiry_date_raw"] = calc_expiry.strftime("%d.%m.%Y")
+            df.loc[mask, "expiry_date"] = calc_expiry
+            df.loc[mask, "expiry_date_raw"] = calc_expiry.strftime("%d.%m.%Y")
         else:
-            # No changes requested
             return False
 
-        # Recalculate remaining days and status for updated rows
+        # Kalan gün ve durumları yeniden hesapla
         from utils.date_parser import calculate_remaining_days, classify_document
         today = date.today()
-        for idx in self.processed_data[mask].index:
-            new_expiry = self.processed_data.at[idx, "expiry_date"]
+        for idx in df[mask].index:
+            new_expiry = df.at[idx, "expiry_date"]
             rem = calculate_remaining_days(new_expiry, today)
-            self.processed_data.at[idx, "remaining_days"] = rem
+            df.at[idx, "remaining_days"] = rem
             new_status = classify_document(rem)
-            self.processed_data.at[idx, "status"] = new_status
-            self.processed_data.at[idx, "status_label"] = STATUS_MAP[new_status][1]
-            self.processed_data.at[idx, "status_color"] = STATUS_MAP[new_status][2]
-            self.processed_data.at[idx, "status_emoji"] = STATUS_MAP[new_status][0]
+            df.at[idx, "status"] = new_status
+            df.at[idx, "status_label"] = STATUS_MAP[new_status][1]
+            df.at[idx, "status_color"] = STATUS_MAP[new_status][2]
+            df.at[idx, "status_emoji"] = STATUS_MAP[new_status][0]
 
-        # *** CRITICAL: Sync the processor's internal DataFrame ***
-        self.processor.processed_df = self.processed_data.copy()
+        # Güncellenmiş DataFrame'i servise ata
+        self.processed_data = df
+        self.processor.processed_df = df.copy()
 
-        # Recreate all summaries so dashboard/other pages see updates
+        # Özet tabloları yeniden oluştur
         self.personnel_summary = self.processor.create_personnel_summary()
         self.rank_summary = self.processor.create_rank_summary()
         self.document_summary = self.processor.get_document_type_summary()
         self.monthly_forecast = self.processor.get_monthly_expiry_forecast()
 
+        # Dashboard'ın değişikliği fark etmesi için versiyon numarasını artır
+        self.data_version += 1
         return True
